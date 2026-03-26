@@ -36,7 +36,7 @@
 | **Private** | ShowPing-subnet-private4-ap-northeast-2b | 10.0.176.0/20 | ap-northeast-2b | RDS (이중화) |
 
 **왜 EC2를 퍼블릭 서브넷에 두었는가?**
-> NAT Gateway는 AZ당 월 약 4~5만원의 비용이 발생합니다. EC2를 퍼블릭 서브넷에 배치하되 보안그룹으로 ALB를 통해서만 트래픽을 수신하도록 제한하여, NAT Gateway 없이도 보안성을 확보했습니다. VPC 생성 시 자동 생성된 NAT Gateway 2개는 Cost Explorer 분석을 통해 불필요한 유휴 리소스로 식별한 후 삭제하여 월 $24~30의 비용을 절감했습니다.
+> NAT Gateway는 AZ당 월 약 4/~5만원의 비용이 발생합니다. EC2를 퍼블릭 서브넷에 배치하되 보안그룹으로 ALB를 통해서만 트래픽을 수신하도록 제한하여, NAT Gateway 없이도 보안성을 확보했습니다. VPC 생성 시 자동 생성된 NAT Gateway 2개는 Cost Explorer 분석을 통해 불필요한 유휴 리소스로 식별한 후 삭제하여 월 $24/~30의 비용을 절감했습니다.
 
 **네트워크 연결:**
 - `ShowPing-igw`: 인터넷 게이트웨이 — VPC에 1:1로 attach되어 외부 통신의 유일한 출입구 역할. 퍼블릭 서브넷의 라우팅 테이블이 `0.0.0.0/0 → IGW`를 가리킴으로써 해당 서브넷이 퍼블릭으로 동작
