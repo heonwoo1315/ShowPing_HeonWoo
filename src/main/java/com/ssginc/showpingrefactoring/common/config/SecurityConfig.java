@@ -84,6 +84,8 @@ public class SecurityConfig {
                                 "/watch/vod/**", "/api/watch/insert", "/product/product_list","/product/product_list/**",
                                 "/product/product_detail/**","/record", "/live", "/api/csrf", "/api/live/register", "/api/vod/list/**", "/api/vod/subtitle/**"
                                 ,"/api/auth/reissue","/auth/mfa/**"
+                                // ⚠️ 성능 테스트 전용 인증 우회 - 테스트 완료 후 반드시 제거
+                                ,"/api/admin/members", "/api/admin/members/**"
                         ).permitAll()
                         // ADMIN
                         .requestMatchers(
