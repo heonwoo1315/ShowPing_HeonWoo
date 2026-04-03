@@ -6,7 +6,8 @@
 
 ### 🔹 인프라 아키텍처 구조
 
-<img width="1197" height="897" alt="image" src="https://github.com/user-attachments/assets/9bf5e4a3-61c5-48e4-a482-6514565d1679" />
+<img width="1111" height="826" alt="image" src="https://github.com/user-attachments/assets/1a212815-ec82-40a2-ad8f-dbf96d3e23e0" />
+
 
 
 ---
