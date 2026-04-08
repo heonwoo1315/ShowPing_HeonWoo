@@ -19,10 +19,9 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
     boolean existsByMemberEmail(String email);
     boolean existsByMemberPhone(String phone);
 
-    // 관리자 유저 검색: memberId, memberName, memberEmail 중 하나라도 포함되면 반환
-    @Query("SELECT m FROM Member m WHERE " +
-            "m.memberId LIKE %:keyword% OR " +
-            "m.memberName LIKE %:keyword% OR " +
-            "m.memberEmail LIKE %:keyword%")
+    // 관리자 유저 검색: Full-Text Index (ngram 파서) MATCH AGAINST
+    @Query(value = "SELECT * FROM member WHERE MATCH(member_id, member_name, member_email) AGAINST(:keyword IN BOOLEAN MODE)",
+            countQuery = "SELECT COUNT(*) FROM member WHERE MATCH(member_id, member_name, member_email) AGAINST(:keyword IN BOOLEAN MODE)",
+            nativeQuery = true)
     Page<Member> findByKeyword(@Param("keyword") String keyword, Pageable pageable);
 }
