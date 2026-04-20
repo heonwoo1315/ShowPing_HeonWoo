@@ -12,6 +12,7 @@ import com.ssginc.showpingrefactoring.domain.member.repository.MemberRepository;
 import com.ssginc.showpingrefactoring.domain.member.service.MemberService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -55,6 +56,7 @@ public class MemberServiceImpl implements MemberService {
         }
     }
 
+    @CacheEvict(value = "memberSearch", allEntries = true)
     @Transactional
     @Override
     public Member registerMember(MemberDto dto) {
@@ -149,6 +151,7 @@ public class MemberServiceImpl implements MemberService {
         );
     }
 
+    @CacheEvict(value = "memberSearch", allEntries = true)
     @Override
     public void updateMember(String memberId, UpdateMemberRequestDto request) {
         Member member = memberRepository.findByMemberId(memberId)
@@ -167,6 +170,7 @@ public class MemberServiceImpl implements MemberService {
         memberRepository.save(member);
     }
 
+    @CacheEvict(value = "memberSearch", allEntries = true)
     @Override
     public void deleteMember(String memberId) {
         Member member = memberRepository.findByMemberId(memberId)
