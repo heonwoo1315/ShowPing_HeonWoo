@@ -6,8 +6,7 @@
 
 ### 🔹 인프라 아키텍처 구조
 
-<img width="1111" height="826" alt="image" src="https://github.com/user-attachments/assets/1a212815-ec82-40a2-ad8f-dbf96d3e23e0" />
-
+<img width="854" height="654" alt="image" src="https://github.com/user-attachments/assets/51a56926-1abf-496d-a7c8-b148eda6a487" />
 
 
 ---
@@ -64,8 +63,8 @@
 | IAM 사용자 | `HeonWoo` | AWS 계정 내 관리자 사용자 |
 | IAM 정책 | `ShowPingSecretAccessPolicy` | Secrets Manager 접근 제어 |
 | 허용 액션 | `GetSecretValue`, `DescribeSecret` | 시크릿 조회 및 설명만 허용 |
-| 허용 IP | `183.102.62.130` (관리자 PC) | 관리자 로컬 환경에서만 접근 |
-| 허용 IP | `15.164.132.246` (EC2 탄력적 IP) | 배포된 서버에서만 접근 |
+| 허용 IP | `183.102.xx.xxx` (관리자 PC) | 관리자 로컬 환경에서만 접근 |
+| 허용 IP | `15.164.xxx.xxx` (EC2 탄력적 IP) | 배포된 서버에서만 접근 |
 | 거부 조건 | 위 2개 IP 외 모든 IP | 명시적 Deny로 이중 차단 |
 
 **IAM 정책 구조 (Allow + Deny):**
@@ -93,7 +92,7 @@ Deny:  그 외 모든 IP     → GetSecretValue (명시적 차단)
 
 ### 🔹 3단계: EC2 내부 서비스 구성 (Docker Compose)
 
-EC2 인스턴스(t3.micro, 15.164.132.246) 내부에서 Docker Compose로 전체 애플리케이션 스택을 운영합니다. 모든 컨테이너는 `showping-net` 브릿지 네트워크로 연결됩니다.
+EC2 인스턴스(t3.micro, 15.164.xxx.xxx) 내부에서 Docker Compose로 전체 애플리케이션 스택을 운영합니다. 모든 컨테이너는 `showping-net` 브릿지 네트워크로 연결됩니다.
 
 | 컨테이너 | 이미지 | 포트 | 네트워크 | 역할 |
 |----------|--------|------|----------|------|
@@ -141,7 +140,7 @@ EC2 인스턴스(t3.micro, 15.164.132.246) 내부에서 Docker Compose로 전체
 |-----------|-------------|------|
 | **ShowPing-ALB-SG** | HTTP(80), HTTPS(443) ← `0.0.0.0/0` | 외부 접속 정문 |
 | **ShowPing-EC2-SG** | 8080 ← `ShowPing-ALB-SG` | ALB 우회 접근 차단 |
-| **ShowPing-RDS-SG-FINAL** | 3306 ← `ShowPing-EC2-SG` + 관리자 IP(`183.102.62.130/32`) | EC2 및 관리자만 DB 접근 |
+| **ShowPing-RDS-SG-FINAL** | 3306 ← `ShowPing-EC2-SG` + 관리자 IP(`183.102.xx.xxx/32`) | EC2 및 관리자만 DB 접근 |
 
 **핵심:** EC2의 8080 포트에 `0.0.0.0/0`을 열지 않고 ALB 보안그룹 ID로만 제한하여, 로드밸런서를 우회한 직접 접근을 원천 차단했습니다.
 
@@ -206,7 +205,7 @@ GitHub Push (main) → Build (Gradle) → Docker Build & Push → SCP → EC2 De
 
 - **현상:** 인프라 이전 후 라이브 방송이 작동하지 않음
 - **원인:** Kurento Media Server의 STUN 서버 IP가 이전 EC2의 IP를 참조
-- **해결:** `WebRtcEndpoint.conf.ini`의 `externalIPv4`를 새 탄력적 IP(15.164.132.246)로 갱신, EC2 보안그룹에 UDP 10000-65535 포트 범위 개방, 컨테이너 재시작
+- **해결:** `WebRtcEndpoint.conf.ini`의 `externalIPv4`를 새 탄력적 IP(15.164.xxx.xxx)로 갱신, EC2 보안그룹에 UDP 10000-65535 포트 범위 개방, 컨테이너 재시작
 - **교훈:** WebRTC는 UDP 포트 범위와 STUN/TURN 서버 IP가 인프라 변경 시 함께 갱신되어야 함
 
 </details>
@@ -234,7 +233,7 @@ GitHub Push (main) → Build (Gradle) → Docker Build & Push → SCP → EC2 De
 * **해결 방향:** 실운영 환경에서는 AWS ElastiCache(Redis), DocumentDB(Mongo), MSK(Kafka) 등의 관리형 서비스를 활용하여 상태 저장 계층을 애플리케이션 계층과 완전히 분리하는 것이 정석이나, 현재는 비용 제약으로 단일 EC2에서 Docker Compose로 운영하며, ASG는 Self-healing(자동 복구) 용도로 활용 중입니다. 스케일 아웃이 필요한 시점에는 상태 저장 서비스를 외부 관리형 서비스로 분리하는 것이 선행되어야 합니다.
 
 ### 2. 비용 최적화와 네트워크 보안의 균형
-* **결정:** NAT Gateway의 고정 비용(월 약 $30) 발생을 방지하기 위해 EC2를 Public Subnet에 배치했습니다.
+* **결정:** NAT Gateway의 고정 비용(월 약 $66.9) 발생을 방지하기 위해 EC2를 Public Subnet에 배치했습니다.
 * **보안 보완:** 서버가 외부 노출되는 위험을 최소화하기 위해 보안 그룹(Security Group)을 ALB ID 기반으로 체이닝하여 로드밸런서를 통하지 않은 직접 접근을 원천 차단했습니다.
 * **향후 계획:** NAT Instance를 직접 구축하여 비용을 유지하면서도 Private Subnet으로 서버를 이전하는 구조적 개선을 계획 중입니다. 이를 위한 Private App 서브넷(private-1, private-2)은 이미 2개 AZ에 걸쳐 확보해둔 상태입니다.
 
