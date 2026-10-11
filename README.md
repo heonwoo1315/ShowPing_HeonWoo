@@ -6,8 +6,7 @@
 
 ### 🔹 인프라 아키텍처 구조
 
-<img width="1111" height="826" alt="image" src="https://github.com/user-attachments/assets/1a212815-ec82-40a2-ad8f-dbf96d3e23e0" />
-
+<img width="854" height="654" alt="image" src="https://github.com/user-attachments/assets/51a56926-1abf-496d-a7c8-b148eda6a487" />
 
 
 ---
@@ -17,7 +16,7 @@
 | 원칙 | 설명 |
 |------|------|
 | **제어권 확보** | EB 대신 수동 구성으로 각 리소스의 동작 원리를 체득. 향후 Terraform/CloudFormation으로 Iac 전환 계획 |
-| **비용 효율성** | Cost Explorer 기반 분석으로 불필요한 NAT Gateway 식별 및 제거, 월 $66 절감 |
+| **비용 효율성** | Cost Explorer 기반 분석으로 NAT Gateway 삭제(월 $66.90 절감) 및 고아 EIP 해제(월 $13.71 추가 절감), 누적 월 $80.61 절감 ($141.48 → $41.31, 70.8% 절감) |
 | **고가용성** | "Multi-AZ(2a, 2b) 서브넷을 모든 계층(App, DB)에 설계하여 HA 전환 기반을 확보. 현재는 단일 노드 운영, 향후 즉시 전환 가능" |
 | **계층형 보안** | ALB → EC2 → RDS로 이어지는 연쇄 보안그룹 + IAM IP 제한 정책 |
 
@@ -37,7 +36,7 @@
 | **Private** | ShowPing-subnet-private4-ap-northeast-2b | 10.0.176.0/20 | ap-northeast-2b | RDS (이중화) |
 
 **왜 EC2를 퍼블릭 서브넷에 두었는가?**
-> NAT Gateway는 AZ당 월 약 4\~5만원의 비용이 발생합니다. EC2를 퍼블릭 서브넷에 배치하되 보안그룹으로 ALB를 통해서만 트래픽을 수신하도록 제한하여, NAT Gateway 없이도 보안성을 확보했습니다. VPC 생성 시 자동 생성된 NAT Gateway 2개는 Cost Explorer 분석을 통해 불필요한 유휴 리소스로 식별한 후 삭제하여 월 $66의 비용을 절감했습니다. (3월 총 청구액 $141.48 대비 약 47% 절감)
+> NAT Gateway 없이도 보안성을 확보했습니다. VPC 생성 시 자동 생성된 NAT Gateway 2개는 Cost Explorer 분석을 통해 불필요한 유휴 리소스로 식별한 후 삭제하여 월 $66.90을 절감했습니다. 이후 NAT Gateway 삭제로 연결이 끊긴 고아 EIP(Elastic IP)가 미해제 상태로 남아 추가 과금이 발생함을 EC2 콘솔에서 식별하여 즉시 해제, 월 $13.71을 추가 절감했습니다. (3월 실측 $141.48 → 5월 실측 $41.31, 누적 70.8% 절감)
 
 **네트워크 연결:**
 - `ShowPing-igw`: 인터넷 게이트웨이 — VPC에 1:1로 attach되어 외부 통신의 유일한 출입구 역할. 퍼블릭 서브넷의 라우팅 테이블이 `0.0.0.0/0 → IGW`를 가리킴으로써 해당 서브넷이 퍼블릭으로 동작
@@ -64,8 +63,8 @@
 | IAM 사용자 | `HeonWoo` | AWS 계정 내 관리자 사용자 |
 | IAM 정책 | `ShowPingSecretAccessPolicy` | Secrets Manager 접근 제어 |
 | 허용 액션 | `GetSecretValue`, `DescribeSecret` | 시크릿 조회 및 설명만 허용 |
-| 허용 IP | `183.102.62.130` (관리자 PC) | 관리자 로컬 환경에서만 접근 |
-| 허용 IP | `15.164.132.246` (EC2 탄력적 IP) | 배포된 서버에서만 접근 |
+| 허용 IP | `183.102.xx.xxx` (관리자 PC) | 관리자 로컬 환경에서만 접근 |
+| 허용 IP | `15.164.xxx.xxx` (EC2 탄력적 IP) | 배포된 서버에서만 접근 |
 | 거부 조건 | 위 2개 IP 외 모든 IP | 명시적 Deny로 이중 차단 |
 
 **IAM 정책 구조 (Allow + Deny):**
@@ -93,7 +92,7 @@ Deny:  그 외 모든 IP     → GetSecretValue (명시적 차단)
 
 ### 🔹 3단계: EC2 내부 서비스 구성 (Docker Compose)
 
-EC2 인스턴스(t3.micro, 15.164.132.246) 내부에서 Docker Compose로 전체 애플리케이션 스택을 운영합니다. 모든 컨테이너는 `showping-net` 브릿지 네트워크로 연결됩니다.
+EC2 인스턴스(t3.micro, 15.164.xxx.xxx) 내부에서 Docker Compose로 전체 애플리케이션 스택을 운영합니다. 모든 컨테이너는 `showping-net` 브릿지 네트워크로 연결됩니다.
 
 | 컨테이너 | 이미지 | 포트 | 네트워크 | 역할 |
 |----------|--------|------|----------|------|
@@ -141,7 +140,7 @@ EC2 인스턴스(t3.micro, 15.164.132.246) 내부에서 Docker Compose로 전체
 |-----------|-------------|------|
 | **ShowPing-ALB-SG** | HTTP(80), HTTPS(443) ← `0.0.0.0/0` | 외부 접속 정문 |
 | **ShowPing-EC2-SG** | 8080 ← `ShowPing-ALB-SG` | ALB 우회 접근 차단 |
-| **ShowPing-RDS-SG-FINAL** | 3306 ← `ShowPing-EC2-SG` + 관리자 IP(`183.102.62.130/32`) | EC2 및 관리자만 DB 접근 |
+| **ShowPing-RDS-SG-FINAL** | 3306 ← `ShowPing-EC2-SG` + 관리자 IP(`183.102.xx.xxx/32`) | EC2 및 관리자만 DB 접근 |
 
 **핵심:** EC2의 8080 포트에 `0.0.0.0/0`을 열지 않고 ALB 보안그룹 ID로만 제한하여, 로드밸런서를 우회한 직접 접근을 원천 차단했습니다.
 
@@ -206,7 +205,7 @@ GitHub Push (main) → Build (Gradle) → Docker Build & Push → SCP → EC2 De
 
 - **현상:** 인프라 이전 후 라이브 방송이 작동하지 않음
 - **원인:** Kurento Media Server의 STUN 서버 IP가 이전 EC2의 IP를 참조
-- **해결:** `WebRtcEndpoint.conf.ini`의 `externalIPv4`를 새 탄력적 IP(15.164.132.246)로 갱신, EC2 보안그룹에 UDP 10000-65535 포트 범위 개방, 컨테이너 재시작
+- **해결:** `WebRtcEndpoint.conf.ini`의 `externalIPv4`를 새 탄력적 IP(15.164.xxx.xxx)로 갱신, EC2 보안그룹에 UDP 10000-65535 포트 범위 개방, 컨테이너 재시작
 - **교훈:** WebRTC는 UDP 포트 범위와 STUN/TURN 서버 IP가 인프라 변경 시 함께 갱신되어야 함
 
 </details>
@@ -217,8 +216,10 @@ GitHub Push (main) → Build (Gradle) → Docker Build & Push → SCP → EC2 De
 - **현상:** VPC 생성 마법사("VPC 등" 옵션)가 자동 생성한 NAT Gateway 2개가 Available 상태로 비용 발생 중
 - **분석:** EC2는 퍼블릭 서브넷에 위치하여 IGW로 직접 인터넷 통신 가능. RDS는 Private 서브넷에 있지만 외부로 나갈 일이 없음(연결을 받기만 하는 수동적 서비스). Redis/MongoDB/Kafka는 EC2 내부 Docker 컨테이너이므로 NAT Gateway와 무관. 즉, NAT Gateway를 사용하는 리소스가 없음
 - **해결:** Cost Explorer로 비용 분석 후 NAT Gateway 2개 삭제, Private 서브넷 라우팅 테이블의 NAT 경로 제거
-- **결과:** 월 $66 비용 절감
-- **교훈:** IaC 도구나 마법사가 자동 생성한 리소스도 실제 필요 여부를 데이터로 검증해야 함
+- **결과:** NAT Gateway 삭제로 월 $66.90 절감 (EC2-기타 $70.26 → $3.36)
+- **후속 이슈:** NAT Gateway 삭제 후 연결이 끊긴 고아 EIP(Elastic IP)가 미해제 상태로 남아 VPC 항목에서 추가 과금 발생. EC2 콘솔에서 고아 EIP를 식별 후 해제하여 월 $13.71 추가 절감 (VPC $25.21 → $11.50)
+- **최종 결과:** 2단계 최적화 누적 — 월 $141.48 → $41.31 (70.8% 절감, AWS Cost Explorer 실측 기준)
+- **교훈:** 리소스 삭제 후 연결된 의존 리소스(EIP, 보안그룹 등)를 반드시 후속 점검해야 함. IaC 도구나 마법사가 자동 생성한 리소스도 실제 필요 여부를 데이터로 검증해야 함
 
 </details>
 
@@ -232,7 +233,7 @@ GitHub Push (main) → Build (Gradle) → Docker Build & Push → SCP → EC2 De
 * **해결 방향:** 실운영 환경에서는 AWS ElastiCache(Redis), DocumentDB(Mongo), MSK(Kafka) 등의 관리형 서비스를 활용하여 상태 저장 계층을 애플리케이션 계층과 완전히 분리하는 것이 정석이나, 현재는 비용 제약으로 단일 EC2에서 Docker Compose로 운영하며, ASG는 Self-healing(자동 복구) 용도로 활용 중입니다. 스케일 아웃이 필요한 시점에는 상태 저장 서비스를 외부 관리형 서비스로 분리하는 것이 선행되어야 합니다.
 
 ### 2. 비용 최적화와 네트워크 보안의 균형
-* **결정:** NAT Gateway의 고정 비용(월 약 $30) 발생을 방지하기 위해 EC2를 Public Subnet에 배치했습니다.
+* **결정:** NAT Gateway의 고정 비용(월 약 $66.9) 발생을 방지하기 위해 EC2를 Public Subnet에 배치했습니다.
 * **보안 보완:** 서버가 외부 노출되는 위험을 최소화하기 위해 보안 그룹(Security Group)을 ALB ID 기반으로 체이닝하여 로드밸런서를 통하지 않은 직접 접근을 원천 차단했습니다.
 * **향후 계획:** NAT Instance를 직접 구축하여 비용을 유지하면서도 Private Subnet으로 서버를 이전하는 구조적 개선을 계획 중입니다. 이를 위한 Private App 서브넷(private-1, private-2)은 이미 2개 AZ에 걸쳐 확보해둔 상태입니다.
 
